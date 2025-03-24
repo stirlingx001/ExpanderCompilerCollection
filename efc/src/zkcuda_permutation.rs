@@ -4,7 +4,7 @@ use expander_compiler::zkcuda::kernel::*;
 use circuit_std_rs::logup::LogUpSingleKeyTable;
 use circuit_std_rs::poseidon_m31::{PoseidonM31Params, POSEIDON_M31X16_FULL_ROUNDS, POSEIDON_M31X16_PARTIAL_ROUNDS, POSEIDON_M31X16_RATE};
 use circuit_std_rs::sha256::m31_utils::from_binary;
-use circuit_std_rs::utils::{register_hint, simple_lookup2, simple_select};
+use circuit_std_rs::utils::{simple_lookup2, simple_select};
 use expander_compiler::zkcuda::context::{call_kernel, Context};
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 use crate::permutation::{PermutationHashEntry, QUERY_SIZE, TABLE_SIZE, VALIDATOR_COUNT};
