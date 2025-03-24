@@ -1,6 +1,6 @@
 use crate::hashtable::{HASHTABLESIZE, SHA256LEN};
 use circuit_std_rs::sha256::m31::sha256_37bytes;
-use circuit_std_rs::sha256::m31_utils::{big_array_add, to_binary_hint};
+use circuit_std_rs::sha256::m31_utils::{big_array_add};
 use circuit_std_rs::utils::register_hint;
 use expander_compiler::frontend::*;
 use expander_compiler::zkcuda::context::{call_kernel, Context};

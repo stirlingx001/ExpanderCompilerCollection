@@ -7,8 +7,6 @@ use expander_compiler::circuit::ir::hint_normalized::witness_solver;
 use expander_compiler::frontend::extra::*;
 use expander_compiler::frontend::*;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
 use std::sync::Arc;
 use std::thread;
 
