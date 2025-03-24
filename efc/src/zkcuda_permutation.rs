@@ -4,11 +4,12 @@ use expander_compiler::zkcuda::kernel::*;
 use circuit_std_rs::logup::LogUpSingleKeyTable;
 use circuit_std_rs::poseidon_m31::{PoseidonM31Params, POSEIDON_M31X16_FULL_ROUNDS, POSEIDON_M31X16_PARTIAL_ROUNDS, POSEIDON_M31X16_RATE};
 use circuit_std_rs::sha256::m31_utils::from_binary;
-use circuit_std_rs::utils::{simple_lookup2, simple_select};
-use crate::permutation::{QUERY_SIZE, TABLE_SIZE, VALIDATOR_COUNT};
-use crate::utils::sub_vector;
+use circuit_std_rs::utils::{register_hint, simple_lookup2, simple_select};
+use expander_compiler::zkcuda::context::{call_kernel, Context};
+use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
+use crate::permutation::{PermutationHashEntry, QUERY_SIZE, TABLE_SIZE, VALIDATOR_COUNT};
+use crate::utils::{read_from_json_file, sub_vector};
 
-#[allow(dead_code)]
 fn verify_permutation_hash_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
     let index = &p[..TABLE_SIZE];
     let value = &p[TABLE_SIZE..TABLE_SIZE*2];
@@ -37,7 +38,6 @@ fn verify_permutation_hash_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>)
 }
 
 
-#[allow(dead_code)]
 fn verify_permutation_indices_validator_hashes_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
    
     let (query_indices, pos) = sub_vector(p, 0, QUERY_SIZE);
@@ -45,7 +45,7 @@ fn verify_permutation_indices_validator_hashes_inner<C: Config>(api: &mut API<C>
     let (active_validator_bits_hash, pos) = sub_vector(p, pos, QUERY_SIZE);
     let (active_validator_bits, pos) = sub_vector(p, pos, VALIDATOR_COUNT);
     let (table_validator_hashes, pos) = sub_vector(p, pos, POSEIDON_M31X16_RATE*VALIDATOR_COUNT);
-    let (real_keys, _) = sub_vector(p, pos, VALIDATOR_COUNT);
+    let (real_keys, _pos) = sub_vector(p, pos, VALIDATOR_COUNT);
 
     let zero_var = api.constant(0);
     let neg_one_count = api.sub(1, VALIDATOR_COUNT as u32);
@@ -142,17 +142,17 @@ fn verify_permutation_hash<C: Config>(
     input: &[InputVariable; TABLE_SIZE*3],
     output: &mut OutputVariable,
 ) {
-    let outc = api.memorized_simple_call(verify_permutation_hash_inner, input);
+    let outc = verify_permutation_hash_inner(api, input);
     *output = outc[0]
 }
 
 #[kernel]
 fn verify_permutation_indices_validator_hashes<C: Config>(
     api: &mut API<C>,
-    input: &[InputVariable; 29362176],
+    input: &[InputVariable; 30408712],
     output: &mut OutputVariable,
 ) {
-    let outc = api.memorized_simple_call(verify_permutation_indices_validator_hashes_inner, input);
+    let outc = verify_permutation_indices_validator_hashes_inner(api, input);
     *output = outc[0]
 }
 
@@ -162,8 +162,74 @@ fn test_zkcuda_permutation_hash() {
     println!("compile ok");
 }
 
-// #[test]
-// fn test_zkcuda_permutation_indices_validator_hashes() {
-//     let _: Kernel<M31Config> = compile_verify_permutation_indices_validator_hashes().unwrap();
-//     println!("compile ok");
-// }
+#[test]
+fn test_zkcuda_permutation_indices_validator_hashes() {
+
+    let dir = "..";
+    let file_path = format!("{}/permutationhash_assignment.json", dir);
+    let permutation_hash_datas: Vec<PermutationHashEntry> = read_from_json_file(&file_path).unwrap();
+    let entry = &permutation_hash_datas[0];
+
+    let mut p: Vec<M31> = vec![];
+
+    for i in 0.. QUERY_SIZE {
+        p.push(M31::from(entry.query_indices[i]))
+    }
+    for i in 0.. QUERY_SIZE {
+        for j in 0.. POSEIDON_M31X16_RATE {
+            p.push(M31::from(entry.query_validator_hashes[i][j]))
+        }
+    }
+    for i in 0.. POSEIDON_M31X16_RATE {
+        p.push(M31::from(entry.active_validator_bits_hash[i]))
+    }
+    for i in 0.. VALIDATOR_COUNT {
+        p.push(M31::from(entry.active_validator_bits[i]))
+    }
+    for i in 0.. VALIDATOR_COUNT {
+        for j in 0.. POSEIDON_M31X16_RATE {
+            p.push(M31::from(entry.table_validator_hashes[i][j]))
+        }
+    }
+    for i in 0.. VALIDATOR_COUNT {
+        p.push(M31::from(entry.real_keys[i]))
+    }
+
+    println!("len: {}", p.len());
+
+    println!("prepare data ok");
+
+    let mut hint_registry1 = HintRegistry::<M31>::new();
+    register_hint(&mut hint_registry1);
+
+    let mut ctx: Context<M31Config, ExpanderGKRProvingSystem<M31Config>, _> =
+        Context::new(hint_registry1);
+
+    let p = ctx.copy_to_device(&vec![p], false);
+
+    println!("copy to device ok");
+
+    // println!("p: {:?}", p.clone().unwrap().shape.unwrap());
+
+    let start_time = std::time::Instant::now();
+    let kernel: Kernel<M31Config> = compile_verify_permutation_indices_validator_hashes().unwrap();
+
+    let t2 = std::time::Instant::now();
+    println!("compile ok, time {:?}", t2.duration_since(start_time));
+
+    let mut out = None;
+    call_kernel!(ctx, kernel, p, mut out);
+    let t3 = std::time::Instant::now();
+    println!("call kernel ok, time {:?}", t3.duration_since(t2));
+
+    let computation_graph = ctx.to_computation_graph();
+
+    let proof = ctx.to_proof();
+
+    assert!(computation_graph.verify(&proof));
+
+    let t4 = std::time::Instant::now();
+
+    println!("verify ok, time {:?}", t4.duration_since(t3));
+
+}
