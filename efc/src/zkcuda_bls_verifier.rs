@@ -21,7 +21,7 @@ fn bls_verify_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Varia
     let pubkey_g1 = G1Affine::from_vars(pubkey[0..48].to_vec(), pubkey[48..].to_vec());
     let hm_g2 = G2AffP::from_vars(
         hm[0..48].to_vec(),
-        hm[0..48].to_vec(),
+        hm[48..96].to_vec(),
         hm[96..144].to_vec(),
         hm[144..192].to_vec(),
     );
