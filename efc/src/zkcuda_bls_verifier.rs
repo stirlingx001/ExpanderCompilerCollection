@@ -8,6 +8,8 @@ use expander_compiler::zkcuda::context::{call_kernel, Context};
 use expander_compiler::zkcuda::kernel::Kernel;
 use expander_compiler::zkcuda::kernel::*;
 use mersenne31::M31;
+use circuit_std_rs::utils::register_hint;
+use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
 #[allow(dead_code)]
 fn bls_verify_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
@@ -44,7 +46,6 @@ fn bls_verify_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Varia
         },
     ];
     pairing.pairing_check(api, &p_array, &mut q_array).unwrap();
-
     pairing.ext12.ext6.ext2.curve_f.check_mul(api);
     pairing.ext12.ext6.ext2.curve_f.table.final_check(api);
     pairing.ext12.ext6.ext2.curve_f.table.final_check(api);
@@ -106,9 +107,12 @@ pub fn test_zkcuda_bls_verify() {
         }
     }
 
+    println!("prepare data ok");
+    let mut hint_registry1 = HintRegistry::<M31>::new();
+    register_hint(&mut hint_registry1);
 
-    println!("prepare data ok, time {:?}", std::time::Instant::now().duration_since(start_time));
-    let mut ctx: Context<M31Config> = Context::default();
+    let mut ctx: Context<M31Config, ExpanderGKRProvingSystem<M31Config>, _> =
+        Context::new(hint_registry1);
 
     let p = ctx.copy_to_device(&vec![p], false);
     println!("copy to device ok");
@@ -116,16 +120,19 @@ pub fn test_zkcuda_bls_verify() {
     // println!("p: {:?}", p.clone().unwrap().shape.unwrap());
 
     let kernel: Kernel<M31Config> = compile_bls_verify().unwrap();
-    println!("compile ok, time {:?}", std::time::Instant::now().duration_since(start_time));
+    let t2 = std::time::Instant::now();
+    println!("compile ok, time {:?}", t2.duration_since(start_time));
 
     let mut out = None;
     call_kernel!(ctx, kernel, p, mut out);
 
-    println!("call kernel ok, time {:?}", std::time::Instant::now().duration_since(start_time));
-
-    println!("out shape: {:?}", out.clone().unwrap().shape.unwrap());
+    let t3 = std::time::Instant::now();
+    println!("call kernel ok, time {:?}", t3.duration_since(t2));
 
     let result: Vec<M31> = ctx.copy_to_host(out);
+
+    println!("result: {:?}", result);
+
     assert_eq!(
         result,
         vec![
@@ -134,13 +141,11 @@ pub fn test_zkcuda_bls_verify() {
     );
 
     let computation_graph = ctx.to_computation_graph();
-
-    println!("to_computation_graph ok, time {:?}", std::time::Instant::now().duration_since(start_time));
-
     let proof = ctx.to_proof();
 
     assert!(computation_graph.verify(&proof));
 
-    println!("verify ok, time {:?}", std::time::Instant::now().duration_since(start_time));
+    let t4 = std::time::Instant::now();
+    println!("verify ok, time {:?}", t4.duration_since(t3));
 }
 
