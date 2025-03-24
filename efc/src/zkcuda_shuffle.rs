@@ -18,7 +18,6 @@ use expander_compiler::zkcuda::context::{call_kernel, Context};
 use expander_compiler::zkcuda::kernel::*;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
-#[allow(dead_code)]
 fn shuffle_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
     println!("len p: {}", p.len());
 
@@ -241,7 +240,7 @@ fn compute_shuffle<C: Config>(
     input: &[InputVariable; 255781],
     output: &mut OutputVariable,
 ) {
-    let outc = api.memorized_simple_call(shuffle_inner, input);
+    let outc = shuffle_inner(api, input);
     *output = outc[0]
 }
 
@@ -306,12 +305,12 @@ fn assign_input(dir: &str) -> Vec<M31> {
 
     //assign source_epoch
     let source_epoch = attestation.data.source.epoch.to_le_bytes();
-    for (j, source_epoch_byte) in source_epoch.iter().enumerate() {
+    for (_, source_epoch_byte) in source_epoch.iter().enumerate() {
         p.push(M31::from(source_epoch_byte as u32));
     }
     //assign target_epoch
     let target_epoch = attestation.data.target.epoch.to_le_bytes();
-    for (j, target_epoch_byte) in target_epoch.iter().enumerate() {
+    for (_, target_epoch_byte) in target_epoch.iter().enumerate() {
         p.push(M31::from(target_epoch_byte as u32));
     }
 
@@ -344,7 +343,7 @@ fn assign_input(dir: &str) -> Vec<M31> {
     //assign attestation_sig_bytes
     let attestation_sig_bytes = attestation.signature.clone();
     let attestation_sig_bytes = STANDARD.decode(attestation_sig_bytes).unwrap();
-    for (j, attestation_sig_byte) in attestation_sig_bytes.iter().enumerate() {
+    for (_, attestation_sig_byte) in attestation_sig_bytes.iter().enumerate() {
         p.push(M31::from(*attestation_sig_byte as u32));
     }
     //assign attestation_sig_g2
@@ -486,8 +485,9 @@ pub fn test_zkcuda_shuffle() {
     let t2 = std::time::Instant::now();
     println!("compile ok, time {:?}", t2.duration_since(start_time));
 
-    let mut out = None;
-    call_kernel!(ctx, kernel, p, mut out);
+    let mut _out = None;
+    call_kernel!(ctx, kernel, p, mut _out);
+
     let t3 = std::time::Instant::now();
     println!("call kernel ok, time {:?}", t3.duration_since(t2));
 

@@ -1,14 +1,17 @@
 use expander_compiler::frontend::*;
-use expander_compiler::zkcuda::kernel::Kernel;
 use expander_compiler::zkcuda::kernel::*;
 use circuit_std_rs::logup::LogUpSingleKeyTable;
 use circuit_std_rs::poseidon_m31::{PoseidonM31Params, POSEIDON_M31X16_FULL_ROUNDS, POSEIDON_M31X16_PARTIAL_ROUNDS, POSEIDON_M31X16_RATE};
 use circuit_std_rs::sha256::m31_utils::from_binary;
 use circuit_std_rs::utils::{simple_lookup2, simple_select};
+use crate::permutation::{QUERY_SIZE, TABLE_SIZE, VALIDATOR_COUNT, PermutationHashEntry};
+use crate::utils::{sub_vector};
+use crate::utils::read_from_json_file;
 use expander_compiler::zkcuda::context::{call_kernel, Context};
+use mersenne31::M31;
+use circuit_std_rs::utils::register_hint;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
-use crate::permutation::{PermutationHashEntry, QUERY_SIZE, TABLE_SIZE, VALIDATOR_COUNT};
-use crate::utils::{read_from_json_file, sub_vector};
+
 
 fn verify_permutation_hash_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
     let index = &p[..TABLE_SIZE];
@@ -156,16 +159,16 @@ fn verify_permutation_indices_validator_hashes<C: Config>(
     *output = outc[0]
 }
 
-#[test]
-fn test_zkcuda_permutation_hash() {
+//#[test]
+pub fn test_zkcuda_permutation_hash() {
     let _: Kernel<M31Config> = compile_verify_permutation_hash().unwrap();
     println!("compile ok");
 }
 
-#[test]
-fn test_zkcuda_permutation_indices_validator_hashes() {
+//#[test]
+pub fn test_zkcuda_permutation_indices_validator_hashes() {
 
-    let dir = "..";
+    let dir = ".";
     let file_path = format!("{}/permutationhash_assignment.json", dir);
     let permutation_hash_datas: Vec<PermutationHashEntry> = read_from_json_file(&file_path).unwrap();
     let entry = &permutation_hash_datas[0];
@@ -217,8 +220,8 @@ fn test_zkcuda_permutation_indices_validator_hashes() {
     let t2 = std::time::Instant::now();
     println!("compile ok, time {:?}", t2.duration_since(start_time));
 
-    let mut out = None;
-    call_kernel!(ctx, kernel, p, mut out);
+    let mut _out = None;
+    call_kernel!(ctx, kernel, p, mut _out);
     let t3 = std::time::Instant::now();
     println!("call kernel ok, time {:?}", t3.duration_since(t2));
 

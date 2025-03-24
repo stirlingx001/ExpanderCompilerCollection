@@ -1,13 +1,12 @@
 use crate::hashtable::{HASHTABLESIZE, SHA256LEN};
 use circuit_std_rs::sha256::m31::sha256_37bytes;
-use circuit_std_rs::sha256::m31_utils::{big_array_add};
+use circuit_std_rs::sha256::m31_utils::big_array_add;
 use circuit_std_rs::utils::register_hint;
 use expander_compiler::frontend::*;
 use expander_compiler::zkcuda::context::{call_kernel, Context};
 use expander_compiler::zkcuda::kernel::*;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
-#[allow(dead_code)]
 fn compute_hashtable_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
     let shuffle_round = p[0];
     let start_index = &p[1..5];
@@ -46,11 +45,9 @@ fn compute_hashtable<C: Config>(
     input: &[InputVariable; 1 + 4 + SHA256LEN],
     output: &mut [OutputVariable; SHA256LEN * HASHTABLESIZE],
 ) {
-    let outc = api.memorized_simple_call(compute_hashtable_inner, input);
-    for i in 0..HASHTABLESIZE {
-        for j in 0..SHA256LEN {
-            output[i * SHA256LEN + j] = outc[i * SHA256LEN + j]
-        }
+    let outc = compute_hashtable_inner(api, input);
+    for i in 0..HASHTABLESIZE * SHA256LEN {
+        output[i] = outc[i]
     }
 }
 
@@ -90,8 +87,8 @@ pub fn test_zkcuda_hashtable() {
     let t2 = std::time::Instant::now();
     println!("compile ok, time {:?}", t2.duration_since(start_time));
 
-    let mut out = None;
-    call_kernel!(ctx, kernel, p, mut out);
+    let mut _out = None;
+    call_kernel!(ctx, kernel, p, mut _out);
     let t3 = std::time::Instant::now();
     println!("call kernel ok, time {:?}", t3.duration_since(t2));
 

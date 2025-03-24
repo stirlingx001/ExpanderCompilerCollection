@@ -11,7 +11,6 @@ use mersenne31::M31;
 use circuit_std_rs::utils::register_hint;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
-#[allow(dead_code)]
 fn bls_verify_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
     let pubkey = &p[..48 * 2];
     let hm = &p[48 * 2..48 * 2 + 48 * 2 * 2];
@@ -60,7 +59,7 @@ fn bls_verify<C: Config>(
     input: &[InputVariable; 48 * 2 + 48 * 2 * 2 + 48 * 2 * 2],
     output: &mut OutputVariable,
 ) {
-    let outc = api.memorized_simple_call(bls_verify_inner, input);
+    let outc = bls_verify_inner(api, input);
     *output = outc[0]
 }
 
