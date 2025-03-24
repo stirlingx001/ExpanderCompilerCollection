@@ -6,18 +6,20 @@ use circuit_std_rs::utils::register_hint;
 use expander_compiler::circuit::ir::hint_normalized::witness_solver;
 use expander_compiler::frontend::extra::*;
 use expander_compiler::frontend::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Write;
 use std::sync::Arc;
 use std::thread;
 
 pub const SHA256LEN: usize = 32;
-pub const HASHTABLESIZE: usize = 32;
+pub const HASHTABLESIZE: usize = 16;
 #[derive(Clone, Copy, Debug)]
 pub struct HashTableParams {
     pub table_size: usize,
     pub hash_len: usize,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HashTableJson {
     #[serde(rename = "Seed")]
     pub seed: Vec<u8>,
@@ -150,4 +152,51 @@ pub fn generate_hash_witnesses(dir: &str) {
         "Generate hashtable witness Time: {:?}",
         end_time.duration_since(start_time)
     );
+}
+
+//#[test]
+pub fn test_hashtable() {
+    let json_str = include_str!("hashtable.json");
+    let hashtable_data: HashTableJson= serde_json::from_str(json_str).expect("Failed to deserialize JSON");
+
+    let mut assignment = HASHTABLECircuit::default();
+    for j in 0..32 {
+        assignment.seed[j] = M31::from(hashtable_data.seed[j] as u32);
+    }
+    assignment.shuffle_round = M31::from(hashtable_data.shuffle_round as u32);
+    for j in 0..4 {
+        assignment.start_index[j] = M31::from(hashtable_data.start_index[j] as u32);
+    }
+    for j in 0..HASHTABLESIZE {
+        for k in 0..32 {
+            assignment.output[j][k] = M31::from(hashtable_data.hash_outputs[j][k] as u32);
+        }
+    }
+
+    let start_time = std::time::Instant::now();
+    println!("assign circuit ok");
+
+    let compile_result = compile(&HASHTABLECircuit::default(), CompileOptions::default()).unwrap();
+
+    let t2 = std::time::Instant::now();
+    println!("compile ok, time {:?}", t2.duration_since(start_time));
+
+    let mut hint_registry1 = HintRegistry::<M31>::new();
+    register_hint(&mut hint_registry1);
+    let witness = compile_result
+        .witness_solver
+        .solve_witness_with_hints(&assignment, &mut hint_registry1)
+        .unwrap();
+
+    let t3 = std::time::Instant::now();
+    println!(
+        "solve_witness_with_hints ok, time {:?}",
+        t3.duration_since(t2)
+    );
+
+    let output = compile_result.layered_circuit.run(&witness);
+    let t4 = std::time::Instant::now();
+    println!("prove ok, time {:?}", t4.duration_since(t3));
+
+    assert_eq!(output, vec![true]);
 }
