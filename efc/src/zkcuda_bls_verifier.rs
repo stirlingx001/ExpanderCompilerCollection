@@ -1,5 +1,5 @@
 use crate::bls_verifier::{convert_limbs, convert_point, PairingEntry};
-use crate::utils::read_from_json_file;
+use crate::utils::{read_from_json_file, sub_vector};
 use circuit_std_rs::gnark::emulated::sw_bls12381::g1::*;
 use circuit_std_rs::gnark::emulated::sw_bls12381::g2::*;
 use circuit_std_rs::gnark::emulated::sw_bls12381::pairing::*;
@@ -12,9 +12,10 @@ use circuit_std_rs::utils::register_hint;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
 fn bls_verify_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
-    let pubkey = &p[..48 * 2];
-    let hm = &p[48 * 2..48 * 2 + 48 * 2 * 2];
-    let sig = &p[48 * 2 + 48 * 2 * 2..];
+    let (pubkey, pos) = sub_vector(p, 0, 48*2);
+    let (hm, pos) = sub_vector(p, pos, 48*2*2);
+    let (sig, _) = sub_vector(p, pos, 48*2*2);
+
     let mut pairing = Pairing::new(api);
     let one_g1 = G1Affine::one(api);
     let pubkey_g1 = G1Affine::from_vars(pubkey[0..48].to_vec(), pubkey[48..].to_vec());
