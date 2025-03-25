@@ -282,3 +282,41 @@ pub fn generate_pairing_witnesses(dir: &str) {
 //         att.Data.Target 290000 [31 28 22 87 106 251 75 169 100 167 224 201 6 63 144 105 213 235 18 224 169 157 122 56 47 48 28 31 124 69 38 248]
 //         att.Signature [170 121 191 2 187 22 51 113 109 233 89 181 237 140 207 117 72 230 115 61 124 161 23 145 241 245 211 134 175 182 206 188 124 240 51 154 121 27 217 24 126 83 70 24 90 206 50 148 2 182 65 209 6 215 131 231 254 32 229 193 207 91 52 22 89 10 212 80 4 160 179 150 246 97 120 81 28 231 36 195 223 118 194 250 230 31 182 130 163 236 45 222 26 229 163 89]
 //          */
+
+
+//#[test]
+pub fn test_bls_verify() {
+
+    let dir = ".";
+    let file_path = format!("{}/pairing_assignment.json", dir);
+    let pairing_data: Vec<PairingEntry> = read_from_json_file(&file_path).unwrap();
+
+    let assignment = PairingCircuit::from_entry(&pairing_data[0]);
+
+    let start_time = std::time::Instant::now();
+    println!("assign circuit ok");
+
+    let compile_result = compile(&PairingCircuit::default(), CompileOptions::default()).unwrap();
+
+    let t2 = std::time::Instant::now();
+    println!("compile ok, time {:?}", t2.duration_since(start_time));
+
+    let mut hint_registry1 = HintRegistry::<M31>::new();
+    register_hint(&mut hint_registry1);
+    let witness = compile_result
+        .witness_solver
+        .solve_witness_with_hints(&assignment, &mut hint_registry1)
+        .unwrap();
+
+    let t3 = std::time::Instant::now();
+    println!(
+        "solve_witness_with_hints ok, time {:?}",
+        t3.duration_since(t2)
+    );
+
+    let output = compile_result.layered_circuit.run(&witness);
+    let t4 = std::time::Instant::now();
+    println!("prove ok, time {:?}", t4.duration_since(t3));
+
+    assert_eq!(output, vec![true]);
+}

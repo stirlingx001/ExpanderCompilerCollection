@@ -19,8 +19,7 @@ use expander_compiler::zkcuda::kernel::*;
 use expander_compiler::zkcuda::proving_system::ExpanderGKRProvingSystem;
 
 fn shuffle_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable> {
-    println!("len p: {}", p.len());
-
+    //println!("len p: {}", p.len());
     let (start_index, pos) = sub_vector(p, 0, 1);
     let (chunk_length, pos) = sub_vector(p, pos, 1);
     let (shuffle_indices, pos) = sub_vector(p, pos, VALIDATOR_CHUNK_SIZE);
@@ -56,10 +55,6 @@ fn shuffle_inner<C: Config>(api: &mut API<C>, p: &Vec<Variable>) -> Vec<Variable
     let (activation_epoch, pos) = sub_vector(p, pos, 8 * VALIDATOR_CHUNK_SIZE);
     let (exit_epoch, pos) = sub_vector(p, pos, 8 * VALIDATOR_CHUNK_SIZE);
     let (withdrawable_epoch, _) = sub_vector(p, pos, 8 * VALIDATOR_CHUNK_SIZE);
-
-    //println!("pos: {}", pos);
-    //api.assert_is_equal(p[0], 1);
-    //return vec![api.constant(1)];
 
     let mut g1 = G1::new(api);
     let mut indices_chunk =

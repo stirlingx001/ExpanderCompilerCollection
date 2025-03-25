@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::thread;
 
 pub const SHA256LEN: usize = 32;
-pub const HASHTABLESIZE: usize = 16;
+pub const HASHTABLESIZE: usize = 32;
 #[derive(Clone, Copy, Debug)]
 pub struct HashTableParams {
     pub table_size: usize,
